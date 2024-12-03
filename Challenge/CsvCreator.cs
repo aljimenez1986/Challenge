@@ -49,6 +49,7 @@ namespace Challenge
                 foreach (Vehicle vehicle in Vehicles)
                 {
                     string fileName = Path.Combine(CsvPath, vehicle.Name + ".csv");
+
                     if (!File.Exists(fileName))
                     {
                         includeHeader = true;

@@ -19,6 +19,7 @@ namespace Challenge
 
         Vehicle CurrentVehicle;
 
+        readonly int DegreeOfParallelism = 10;//simultaneous elements to be processed
 
         /// <summary>
         /// Initializes a new instance of the <see cref="VehicleProcessor"/> class.
@@ -41,17 +42,32 @@ namespace Challenge
         {
             VehiclesToReturn = new List<Vehicle>();
 
-            if (Initial)
+            try
             {
-                VehicleCache = new Dictionary<Id, Vehicle>();
+                if (Initial)
+                {
+                    VehicleCache = new Dictionary<Id, Vehicle>();
 
-                await GetAllVehiclesAsync();
+                    await GetAllVehiclesAsync();
 
-                Initial = false;
+                    Initial = false;
+                }
+                else
+                {
+                    await GetLastVehicleChangesAsync();
+                }
             }
-            else
+            catch (Exception e)
             {
-                await GetLastVehicleChangesAsync();
+                Console.WriteLine(e.Message);
+                if (e is HttpRequestException)
+                {
+                    await Task.Delay(5000);
+                }
+                if (e is DbUnavailableException)
+                {
+                    await Task.Delay(TimeSpan.FromMinutes(5));
+                }
             }
 
             return VehiclesToReturn;
@@ -68,10 +84,7 @@ namespace Challenge
 
             if (returnedDevices != null)
             {
-                foreach (Device device in returnedDevices)
-                {
-                    await SetCurrentVehicle(device);
-                }
+                ProcessDevices(returnedDevices);
             }
         }
 
@@ -194,11 +207,23 @@ namespace Challenge
 
             if (deviceFeed.Data.Count > 0)
             {
-                foreach (var device in deviceFeed.Data)
-                {
-                    await SetCurrentVehicle(device);
-                }
+                await ProcessDevices(deviceFeed.Data);
             }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="devices"></param>
+        /// <returns></returns>
+        private async Task ProcessDevices(IList<Device> devices)
+        {
+            var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = DegreeOfParallelism };
+
+            await Parallel.ForEachAsync(devices, parallelOptions, async (device, _) =>
+            {
+                await SetCurrentVehicle(device);
+            });
         }
 
         /// <summary>
@@ -237,6 +262,7 @@ namespace Challenge
                 }
             }
         }
+
 
         /// <summary>
         /// Gets last feed of entity requested
