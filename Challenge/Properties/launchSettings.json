@@ -1,8 +1,7 @@
 {
   "profiles": {
     "Challenge": {
-      "commandName": "Project",
-      "commandLineArgs": "\"C:\\Users\\titoj\\source\\repos\\DATA\" \"aljimenez1986@gmail.com\"  \"Inform4tik86.\" \"demo_candidates_net\" \"mypreview.geotab.com\" "
+      "commandName": "Project"
     }
   }
 }
