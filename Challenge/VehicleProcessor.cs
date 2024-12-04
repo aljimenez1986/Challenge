@@ -13,13 +13,11 @@ namespace Challenge
 
         bool Initial = true;
 
-        IDictionary<Id, Vehicle> VehicleCache;
+        IDictionary<Id, Vehicle> VehicleCache = new Dictionary<Id, Vehicle>();
 
-        IList<Vehicle> VehiclesToReturn;
+        IList<Vehicle> VehiclesToReturn = new List<Vehicle>();
 
-        Vehicle CurrentVehicle;
-
-        readonly int DegreeOfParallelism = 10;//simultaneous elements to be processed
+        Vehicle CurrentVehicle = new Vehicle();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="VehicleProcessor"/> class.
@@ -46,10 +44,8 @@ namespace Challenge
             {
                 if (Initial)
                 {
-                    VehicleCache = new Dictionary<Id, Vehicle>();
-
                     await GetAllVehiclesAsync();
-
+                    
                     Initial = false;
                 }
                 else
@@ -84,7 +80,7 @@ namespace Challenge
 
             if (returnedDevices != null)
             {
-                ProcessDevices(returnedDevices);
+                await ProcessDevices(returnedDevices);
             }
         }
 
@@ -95,12 +91,12 @@ namespace Challenge
         /// <returns></returns>
         private async Task SetCurrentVehicle(Device device)
         {
-            var deviceId = device.Id;
+             var deviceId = device.Id;
 
             if (deviceId == null)
-            {
-                return;
-            }
+             {
+                 return;
+             }
 
             CurrentVehicle = new Vehicle
             {
@@ -150,11 +146,13 @@ namespace Challenge
                     }
                 }
             });
-
-            if (returnedDeviceStatusInfoList.Count > 0)
+            if (returnedDeviceStatusInfoList != null)
             {
-                CurrentVehicle.Longitude = returnedDeviceStatusInfoList[0].Longitude;
-                CurrentVehicle.Latitude = returnedDeviceStatusInfoList[0].Latitude; ;
+                if (returnedDeviceStatusInfoList.Count > 0)
+                {
+                    CurrentVehicle.Longitude = returnedDeviceStatusInfoList[0].Longitude;
+                    CurrentVehicle.Latitude = returnedDeviceStatusInfoList[0].Latitude; ;
+                }
             }
         }
 
@@ -175,9 +173,12 @@ namespace Challenge
                 }
             });
 
-            if (statusData.Count > 0)
+            if (statusData != null)
             {
-                CurrentVehicle.Odometer = statusData[0].Data ?? 0;
+                if (statusData.Count > 0)
+                {
+                    CurrentVehicle.Odometer = statusData[0].Data ?? 0;
+                }
             }
 
         }
@@ -205,7 +206,7 @@ namespace Challenge
         {
             var deviceFeed = await MakeFeedCallAsync<Device>();
 
-            if (deviceFeed.Data.Count > 0)
+            if (deviceFeed.Data != null && deviceFeed.Data.Count > 0)
             {
                 await ProcessDevices(deviceFeed.Data);
             }
@@ -218,12 +219,10 @@ namespace Challenge
         /// <returns></returns>
         private async Task ProcessDevices(IList<Device> devices)
         {
-            var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = DegreeOfParallelism };
-
-            await Parallel.ForEachAsync(devices, parallelOptions, async (device, _) =>
+            foreach (var device in devices)
             {
                 await SetCurrentVehicle(device);
-            });
+            }
         }
 
         /// <summary>
@@ -234,29 +233,33 @@ namespace Challenge
         {
             var deviceStatusInfoFeed = await MakeFeedCallAsync<DeviceStatusInfo>();
 
-            if (deviceStatusInfoFeed.Data.Count > 0)
+
+            if (deviceStatusInfoFeed != null && deviceStatusInfoFeed.Data != null && deviceStatusInfoFeed.Data.Count > 0)
             {
                 foreach (var deviceStatusInfo in deviceStatusInfoFeed.Data)
                 {
-                    var deviceId = deviceStatusInfo.Device.Id;
 
-                    if (deviceId == null)
+                    if (deviceStatusInfo != null && deviceStatusInfo.Device != null && deviceStatusInfo.Device.Id != null)
                     {
-                        continue;
-                    }
+                        var deviceId = deviceStatusInfo.Device.Id;
 
-                    //get the vehicule from cache and compare
-                    if (VehicleCache.TryGetValue(deviceId, out CurrentVehicle))
-                    {
-                        if (CurrentVehicle.Longitude != deviceStatusInfo.Longitude ||
-                            CurrentVehicle.Latitude != deviceStatusInfo.Latitude)
+                        VehicleCache.TryGetValue(deviceId, out Vehicle? vehicle);
+
+                        if (vehicle != null)
                         {
-                            CurrentVehicle.Longitude = deviceStatusInfo.Longitude;
-                            CurrentVehicle.Latitude = deviceStatusInfo.Latitude;
+                            CurrentVehicle = vehicle;
 
-                            //update cache && set to the return list
-                            VehicleCache[deviceId] = CurrentVehicle;
-                            VehiclesToReturn.Add(CurrentVehicle);
+                            //get the vehicule from cache and compare
+                            if (CurrentVehicle.Longitude != deviceStatusInfo.Longitude ||
+                                CurrentVehicle.Latitude != deviceStatusInfo.Latitude)
+                            {
+                                CurrentVehicle.Longitude = deviceStatusInfo.Longitude;
+                                CurrentVehicle.Latitude = deviceStatusInfo.Latitude;
+
+                                //update cache && set to the return list
+                                VehicleCache[deviceId] = CurrentVehicle;
+                                VehiclesToReturn.Add(CurrentVehicle);
+                            }
                         }
                     }
                 }
@@ -272,7 +275,14 @@ namespace Challenge
         async Task<FeedResult<T>> MakeFeedCallAsync<T>()
          where T : Entity
         {
-            return await Api.CallAsync<FeedResult<T>>("GetFeed", typeof(T));
+            var result = await Api.CallAsync<FeedResult<T>>("GetFeed", typeof(T));
+
+            if (result != null)
+            {
+                return result;
+            }
+
+            return new FeedResult<T>();
         }
     }
 }

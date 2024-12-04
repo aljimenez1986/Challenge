@@ -27,7 +27,7 @@
             string password = args[2];
             string database = args[3];
             string server = args[4];
-            int milisecondsDelay = args.Length == 6 ? Convert.ToInt32(args[5]) : 10000;//60000
+            int milisecondsDelay = args.Length == 6 ? Convert.ToInt32(args[5]) : 60000;
 
             Backup backup = new DatabaseBackup(filePath, user, password, database, server, milisecondsDelay);
 
